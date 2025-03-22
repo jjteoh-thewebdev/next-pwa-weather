@@ -4,7 +4,11 @@ A modern, responsive weather application built with Next.js that works online an
 
 ## Preview
 
-![Weather App](preview.gif)
+<!-- ![Weather App](preview.gif) -->
+<div align="center">
+   <img src="preview.gif" width="480" height="620">
+</div>
+
 
 <!-- <div align="center">
 
