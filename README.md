@@ -1,36 +1,91 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Next.js Progressive Weather App
+
+A modern, responsive weather application built with Next.js that works online and offline.
+
+## Preview
+
+![Weather App](preview.gif)
+
+<!-- <div align="center">
+
+### [Browse Live App](https://gamma-rosy.vercel.app/)
+
+</div> -->
+
+## Features
+
+- 🌦️ **Real-time Weather Data**: Get up-to-date weather information from a public weather API
+- 📱 **Progressive Web App**: Works offline with cached data
+- 🔍 **Location Search**: Find weather for any location worldwide
+- 📅 **7-Day Forecast**: View weather predictions up to 7 days 
+- 🌡️ **Temperature Units**: Toggle between Celsius and Fahrenheit
+- 💨 **Air Quality Information**: Detailed air quality metrics including index, level, and primary pollutant
+- 🖥️ **Responsive Design**: Optimized for mobile, tablet, and desktop
+- 💾 **Installable**: Can be installed on devices as a standalone app
+
+## Tech Stack
+
+- Next.js 14
+- TypeScript
+- TailwindCSS
+- shadcn/ui components
+- Service Workers for offline functionality
+- WeatherAPI.com for weather data
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Node.js 18+ and npm/yarn
+- A WeatherAPI.com API key (free tier available)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Installation
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-username/next-pwa-weather.git
+   cd next-pwa-weather
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-## Learn More
+3. Create a `.env.local` file in the root directory:
+   ```
+   WEATHER_API_URL=https://api.weatherapi.com/v1
+   WEATHER_API_KEY=your_weatherapi_key_here
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+5. Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Usage
 
-## Deploy on Vercel
+- **Search for a location**: Use the search bar to find any city worldwide
+- **Toggle temperature units**: Switch between Celsius and Fahrenheit using the toggle in the header
+- **View detailed weather**: See current conditions, humidity, wind speed, and air quality index
+- **Check forecast**: Scroll down to see the 7-day forecast
+- **Install the app**: Click the "Install App" button to add as a standalone application. For mobile only.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Offline Functionality
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The app caches weather data for your last viewed location. When offline:
+- You'll see a notification that you're viewing cached data
+- You can still access previously loaded weather information
+- New location searches will be unavailable until you're back online
+
+## License
+
+[MIT](LICENSE)
+
+## Acknowledgements
+
+- Weather data provided by [WeatherAPI.com](https://www.weatherapi.com/)
+- Icons from [Lucide Icons](https://lucide.dev/)
+- UI components from [shadcn/ui](https://ui.shadcn.com/)

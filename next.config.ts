@@ -1,7 +1,21 @@
-import type { NextConfig } from "next";
+import withPWA from 'next-pwa';
 
-const nextConfig: NextConfig = {
-  /* config options here */
+// Register ts-node to handle TypeScript configuration
+// @ts-ignore
+// if (process.env.NODE_ENV !== 'production') require('ts-node/register');
+
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
 };
 
-export default nextConfig;
+const config = withPWA({
+  dest: 'public',
+  register: true,
+  skipWaiting: true,
+  // Disable PWA in development to avoid interference with hot reloading
+  disable: process.env.NODE_ENV === 'development',
+})(nextConfig);
+
+export default config;
+
