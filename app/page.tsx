@@ -3,7 +3,8 @@
 import type React from "react"
 
 import { useState, useEffect } from "react"
-import { Cloud, CloudRain, CloudSnow, Sun, Droplets, Wind, Download, CloudOff } from "lucide-react"
+import { Cloud, CloudRain, CloudSnow, Sun, Droplets, Wind, Download, CloudOff, RefreshCw } from "lucide-react"
+import { format, addDays, parseISO, differenceInHours, differenceInMinutes } from "date-fns"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,6 +17,7 @@ import type { LocationSuggestion, WeatherResponse } from "@/lib/api/models"
 // Default location when app first loads
 const DEFAULT_LOCATION = "Kuala Lumpur";
 
+const isBrowser = () => typeof window !== 'undefined';
 
 // Define types for our transformed weather data
 interface ForecastDay {
@@ -70,11 +72,13 @@ export default function WeatherApp() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isOnline, setIsOnline] = useState(true)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [isInstalled, setIsInstalled] = useState(false)
   const [useFahrenheit, setUseFahrenheit] = useState(false)
 
   // Function to ensure we always have 7 days of forecast starting from tomorrow
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ensureSevenDayForecast = (forecastDays: any[]) => {
     // Skip today (index 0) and start from tomorrow
     const startFromTomorrow = forecastDays.length > 1 ? forecastDays.slice(1) : [];
@@ -84,11 +88,10 @@ export default function WeatherApp() {
 
     // Get the last day from the forecast or use tomorrow if no data
     const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrow = addDays(today, 1);
 
     const lastProvidedDay = startFromTomorrow.length > 0
-      ? new Date(startFromTomorrow[startFromTomorrow.length - 1].date)
+      ? parseISO(startFromTomorrow[startFromTomorrow.length - 1].date)
       : tomorrow;
 
     // Create a complete 7-day forecast
@@ -97,12 +100,14 @@ export default function WeatherApp() {
     // Fill missing days
     while (completeForecast.length < 7) {
       // Add a day to the last date
-      const nextDay = new Date(lastProvidedDay);
-      nextDay.setDate(nextDay.getDate() + completeForecast.length + 1 - startFromTomorrow.length);
+      const nextDay = addDays(
+        lastProvidedDay,
+        completeForecast.length + 1 - startFromTomorrow.length
+      );
 
       // Create a placeholder forecast for the missing day
       completeForecast.push({
-        date: nextDay.toISOString().split('T')[0],
+        date: format(nextDay, 'yyyy-MM-dd'),
         day: {
           avgtemp_f: null,
           avgtemp_c: null,
@@ -136,9 +141,9 @@ export default function WeatherApp() {
         primaryPollutant: getPrimaryPollutant(weatherData.current.air_quality),
         description: getAirQualityDescription(weatherData.current.air_quality?.["us-epa-index"] || 1),
       },
-      forecast: completeForcastDays.map((day, index) => {
-        const date = new Date(day.date);
-        const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
+      forecast: completeForcastDays.map((day) => {
+        const date = parseISO(day.date);
+        const dayName = format(date, 'EEE');
 
         return {
           day: dayName,
@@ -150,29 +155,10 @@ export default function WeatherApp() {
     };
   };
 
-  // Load initial weather data
-  const fetchInitialWeather = async () => {
-    if (!isOnline) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const weatherData = await getWeatherForecast(DEFAULT_LOCATION, 7);
-      const transformedData = transformWeatherData(weatherData);
-
-      setWeather(transformedData);
-      // Save to localStorage for offline use
-      localStorage.setItem("weatherData", JSON.stringify(transformedData));
-    } catch (err) {
-      console.error("Failed to fetch initial weather:", err);
-      setError("Failed to fetch weather data. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
+    // This effect only runs in the browser
+    if (!isBrowser()) return;
+
     // Check if online
     setIsOnline(navigator.onLine)
     window.addEventListener("online", () => setIsOnline(true))
@@ -184,7 +170,7 @@ export default function WeatherApp() {
       try {
         setWeather(JSON.parse(savedWeather))
       } catch (e) {
-        console.error("Failed to parse saved weather data")
+        console.error("Failed to parse saved weather data", e)
       }
     }
 
@@ -193,6 +179,30 @@ export default function WeatherApp() {
     if (savedUnit !== null) {
       setUseFahrenheit(savedUnit === "true")
     }
+
+    // Load initial weather data
+    const fetchInitialWeather = async () => {
+      if (!isOnline) return;
+
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const weatherData = await getWeatherForecast(DEFAULT_LOCATION, 7);
+        const transformedData = transformWeatherData(weatherData);
+
+        setWeather(transformedData);
+        // Save to localStorage for offline use
+        localStorage.setItem("weatherData", JSON.stringify(transformedData));
+        // Save the timestamp when this data was fetched
+        localStorage.setItem("weatherDataTimestamp", format(new Date(), 'yyyy-MM-dd\'T\'HH:mm:ss'));
+      } catch (err) {
+        console.error("Failed to fetch initial weather:", err);
+        setError("Failed to fetch weather data. Please try again.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
     // Then fetch fresh data from API
     fetchInitialWeather();
@@ -215,13 +225,15 @@ export default function WeatherApp() {
       window.removeEventListener("offline", () => setIsOnline(false))
       window.removeEventListener("beforeinstallprompt", () => { })
     }
-  }, [])
+  }, [isOnline])
 
   // Handle temperature unit toggle
   const handleTemperatureUnitChange = () => {
     const newValue = !useFahrenheit;
     setUseFahrenheit(newValue);
-    localStorage.setItem("useFahrenheit", newValue.toString());
+    if (isBrowser()) {
+      localStorage.setItem("useFahrenheit", newValue.toString());
+    }
   };
 
   const handleLocationSelect = async (location: LocationSuggestion) => {
@@ -241,7 +253,11 @@ export default function WeatherApp() {
 
       setWeather(transformedData);
       // Save to localStorage for offline use
-      localStorage.setItem("weatherData", JSON.stringify(transformedData));
+      if (isBrowser()) {
+        localStorage.setItem("weatherData", JSON.stringify(transformedData));
+        // Save the timestamp when this data was fetched
+        localStorage.setItem("weatherDataTimestamp", format(new Date(), 'yyyy-MM-dd\'T\'HH:mm:ss'));
+      }
     } catch (err) {
       console.error("Failed to fetch weather:", err);
       setError("Failed to fetch weather data. Please try again.");
@@ -309,6 +325,7 @@ export default function WeatherApp() {
     return "Hazardous";
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getPrimaryPollutant = (airQuality: any) => {
     if (!airQuality) return "Unknown";
 
@@ -372,19 +389,114 @@ export default function WeatherApp() {
     }
   }
 
-  if (!isOnline && !localStorage.getItem("weatherData")) {
+  // to get formatted last update time
+  const getLastUpdateTime = () => {
+    if (!isBrowser()) return format(new Date(), 'p');
+
+    const timestamp = localStorage.getItem("weatherDataTimestamp");
+    if (timestamp) {
+      try {
+        const lastUpdate = parseISO(timestamp);
+        const now = new Date();
+
+        // If it was updated today, just show the time
+        if (format(lastUpdate, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd')) {
+          return `Today at ${format(lastUpdate, 'h:mm a')}`;
+        }
+
+        // Otherwise show the date and time
+        return format(lastUpdate, 'MMM d, yyyy \'at\' h:mm a');
+      } catch (e) {
+        console.error("Failed to parse timestamp", e);
+      }
+    }
+
+    // Default fallback
+    return format(new Date(), 'p');
+  };
+
+  // to determine if data needs refresh
+  const getDataAge = () => {
+    if (!isBrowser()) return null;
+
+    const timestamp = localStorage.getItem("weatherDataTimestamp");
+    if (!timestamp) return null;
+
+    try {
+      const lastUpdate = parseISO(timestamp);
+      const now = new Date();
+      const hoursDiff = differenceInHours(now, lastUpdate);
+
+      // If more than 6 hours old, data may be stale
+      if (hoursDiff >= 6) {
+        return {
+          needsRefresh: true,
+          message: `Weather data is ${hoursDiff} hours old`
+        };
+      }
+
+      // If more than 1 hour old but less than 6, show minutes
+      if (hoursDiff >= 1) {
+        return {
+          needsRefresh: false,
+          message: `Updated ${hoursDiff} hours ago`
+        };
+      }
+
+      // If less than 1 hour, show minutes
+      const minutesDiff = differenceInMinutes(now, lastUpdate);
+      return {
+        needsRefresh: false,
+        message: `Updated ${minutesDiff} minutes ago`
+      };
+    } catch (e) {
+      console.error("Failed to calculate data age", e);
+      return null;
+    }
+  };
+
+  // Function to handle manual refresh
+  const handleRefresh = async () => {
+    if (!isOnline) {
+      alert("You're offline. Please connect to the internet to refresh weather data.");
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // Use the current displayed location or default
+      const locationQuery = weather?.location.split(',')[0] || DEFAULT_LOCATION;
+      const weatherData = await getWeatherForecast(locationQuery, 7);
+      const transformedData = transformWeatherData(weatherData);
+
+      setWeather(transformedData);
+      if (isBrowser()) {
+        localStorage.setItem("weatherData", JSON.stringify(transformedData));
+        localStorage.setItem("weatherDataTimestamp", format(new Date(), 'yyyy-MM-dd\'T\'HH:mm:ss'));
+      }
+    } catch (err) {
+      console.error("Failed to refresh weather:", err);
+      setError("Failed to refresh weather data. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (!isOnline && isBrowser() && !localStorage.getItem("weatherData")) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-b from-blue-50 to-blue-100 p-4">
         <Card className="mx-auto w-full max-w-md border-none shadow-lg">
           <CardHeader className="bg-primary text-primary-foreground rounded-t-lg text-center">
             <CardTitle className="flex flex-col items-center justify-center gap-2">
               <CloudOff className="h-12 w-12" />
-              <span>You're Offline</span>
+              <span>You&apos;re Offline</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6 text-center">
             <p className="mb-6">
-              It looks like you're not connected to the internet and no cached weather data is available.
+              It looks like you&apos;re not connected to the internet and no cached weather data is available.
             </p>
             <Button onClick={() => window.location.reload()}>Try Again</Button>
           </CardContent>
@@ -399,7 +511,7 @@ export default function WeatherApp() {
         <h1 className="text-3xl font-bold text-primary md:text-4xl">Weather <span className="text-muted-foreground text-xs">by JJTeoh</span></h1>
         <p className="mt-2 text-muted-foreground">Check the weather anywhere in the world</p>
 
-        {!isInstalled && deferredPrompt && (
+        {isBrowser() && !isInstalled && deferredPrompt && (
           <Button variant="outline" className="mt-4 bg-white" onClick={handleInstallClick}>
             <Download className="mr-2 h-4 w-4" />
             Install App
@@ -408,7 +520,22 @@ export default function WeatherApp() {
 
         {!isOnline && (
           <div className="mt-4 rounded-md bg-amber-100 p-2 text-amber-800">
-            You're currently offline. Showing cached weather data.
+            You&apos;re currently offline. Showing cached weather data.
+          </div>
+        )}
+
+        {isOnline && isBrowser() && getDataAge()?.needsRefresh && (
+          <div className="mt-4 flex justify-center">
+            <Button
+              variant="outline"
+              size="sm"
+              className="bg-blue-50 text-blue-700 flex items-center gap-1"
+              onClick={handleRefresh}
+              disabled={isLoading}
+            >
+              <RefreshCw className="h-3 w-3" />
+              {getDataAge()?.message}
+            </Button>
           </div>
         )}
       </header>
@@ -439,12 +566,7 @@ export default function WeatherApp() {
               {getWeatherIcon(weather.condition)}
             </CardTitle>
             <CardDescription className="text-primary-foreground/80">
-              {new Date().toLocaleDateString("en-US", {
-                weekday: "long",
-                year: "numeric",
-                month: "long",
-                day: "numeric",
-              })}
+              {format(new Date(), 'EEEE, MMMM d, yyyy')}
             </CardDescription>
           </CardHeader>
           <CardContent className="py-6">
@@ -527,7 +649,7 @@ export default function WeatherApp() {
           </CardContent>
           <CardFooter className="text-sm text-muted-foreground py-6">
             <p>
-              Last updated: {new Date().toLocaleTimeString()}. Powered by <a href="https://www.weatherapi.com/" title="Weather API">WeatherAPI.com</a>
+              Last updated: {getLastUpdateTime()}. Powered by <a href="https://www.weatherapi.com/" title="Weather API">WeatherAPI.com</a>
             </p>
           </CardFooter>
         </Card>
