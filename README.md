@@ -10,11 +10,11 @@ A modern, responsive weather application built with Next.js that works online an
 </div>
 
 
-<!-- <div align="center">
+<div align="center">
 
-### [Browse Live App](https://gamma-rosy.vercel.app/)
+### [Browse Live App](https://next-pwa-weather.vercel.app/)
 
-</div> -->
+</div>
 
 ## Features
 
