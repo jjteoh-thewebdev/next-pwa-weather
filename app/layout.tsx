@@ -3,6 +3,7 @@ import "@/app/globals.css"
 import { Inter } from "next/font/google"
 import { ThemeProvider } from "@/components/theme-provider"
 import type { Metadata } from "next"
+import { Analytics } from "@vercel/analytics/react"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -55,6 +56,8 @@ export default function RootLayout({
             <p>Weather App by <a className="underline text-blue-500" href="https://github.com/jjteoh-thewebdev">JJTeoh</a></p>
           </footer>
         </ThemeProvider>
+
+        <Analytics />
       </body>
     </html>
   )

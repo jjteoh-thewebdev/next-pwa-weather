@@ -77,32 +77,29 @@ export default function WeatherApp() {
   const [isInstalled, setIsInstalled] = useState(false)
   const [useFahrenheit, setUseFahrenheit] = useState(false)
 
-  // Function to ensure we always have 7 days of forecast starting from tomorrow
+  // Function to ensure we always have 7 days of forecast starting from today
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const ensureSevenDayForecast = (forecastDays: any[]) => {
-    // Skip today (index 0) and start from tomorrow
-    const startFromTomorrow = forecastDays.length > 1 ? forecastDays.slice(1) : [];
-
-    // If we have 7 days already after removing today, return as is
-    if (startFromTomorrow.length >= 7) return startFromTomorrow.slice(0, 7);
+    // If we have 7 days already, return as is
+    if (forecastDays.length >= 7) return forecastDays.slice(0, 7);
 
     // Get the last day from the forecast or use tomorrow if no data
     const today = new Date();
     const tomorrow = addDays(today, 1);
 
-    const lastProvidedDay = startFromTomorrow.length > 0
-      ? parseISO(startFromTomorrow[startFromTomorrow.length - 1].date)
+    const lastProvidedDay = forecastDays.length > 0
+      ? parseISO(forecastDays[forecastDays.length - 1].date)
       : tomorrow;
 
     // Create a complete 7-day forecast
-    const completeForecast = [...startFromTomorrow];
+    const completeForecast = [...forecastDays];
 
     // Fill missing days
     while (completeForecast.length < 7) {
       // Add a day to the last date
       const nextDay = addDays(
         lastProvidedDay,
-        completeForecast.length + 1 - startFromTomorrow.length
+        completeForecast.length + 1 - forecastDays.length
       );
 
       // Create a placeholder forecast for the missing day
