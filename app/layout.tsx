@@ -1,9 +1,11 @@
 import type React from "react"
 import "@/app/globals.css"
 import { Inter } from "next/font/google"
-import { ThemeProvider } from "@/components/theme-provider"
+import { ThemeProvider } from "@/components/providers/ThemeProvider"
 import type { Metadata } from "next"
 import { Analytics } from "@vercel/analytics/react"
+import { FeatureFlagProvider } from "@/components/providers/FeatureFlagProvider"
+import { createFlagsmithInstance } from "flagsmith/isomorphic"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -41,22 +43,44 @@ export const metadata: Metadata = {
   // },
 }
 
-export default function RootLayout({
+
+
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+  const flagSmithId = process.env.NEXT_PUBLIC_FLAGSMITH_KEY
+
+  const flagsmith = createFlagsmithInstance()
+  await flagsmith.init({
+    environmentID: flagSmithId,
+    onChange: () => {
+      console.log(`detected`)
+    }
+    // realtime: false, // we will poll manually due to free version has limited credit per month
+    // Add optional identity, etc.
+ });
+ // poll every 10 seconds
+//  flagsmith.startListening(1000); 
+ const serverState = flagsmith.getState();
+ console.log(serverState)
+
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={inter.className} suppressHydrationWarning>
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-          {children}
+        <FeatureFlagProvider serverState={serverState}>
+          <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
+       
+            {children}
+        
+            <footer className="text-center text-sm text-muted-foreground py-6">
+              <p>Weather App by <a className="underline text-blue-500" href="https://github.com/jjteoh-thewebdev">JJTeoh</a></p>
+            </footer>
+          </ThemeProvider>
+        </FeatureFlagProvider>
 
-          <footer className="text-center text-sm text-muted-foreground py-6">
-            <p>Weather App by <a className="underline text-blue-500" href="https://github.com/jjteoh-thewebdev">JJTeoh</a></p>
-          </footer>
-        </ThemeProvider>
-
+        {/* Vercel analytics */}
         <Analytics />
       </body>
     </html>

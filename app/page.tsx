@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label"
 import SearchBar from "@/components/SearchBar"
 import { getWeatherForecast, searchLocations } from "@/lib/api/api"
 import type { LocationSuggestion, WeatherResponse } from "@/lib/api/models"
+import { useFlags, useFlagsmith } from "flagsmith/react"
 
 // Default location when app first loads
 const DEFAULT_LOCATION = "Kuala Lumpur";
@@ -85,6 +86,13 @@ export default function WeatherApp() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [isInstalled, setIsInstalled] = useState(false)
   const [useFahrenheit, setUseFahrenheit] = useState(false)
+  const flags = useFlags([`7_days_forecast`, `today_air_quality`, `today_forecast`])
+  // const [flags, setFlags] = useState<Flags>({
+  //   '7_days_forecast': false,
+  //   today_air_quality: false,
+  //   today_forecast: false
+  // })
+  const flagsmith = useFlagsmith()
 
   // Function to get user's current location
   const getCurrentLocation = async() => {
@@ -203,6 +211,20 @@ export default function WeatherApp() {
     // This effect only runs in the browser
     if (!isBrowser()) return;
 
+    // for some reasons flagsmith does not auto poll according to this setup:
+    // https://docs.flagsmith.com/clients/next-ssr
+    // so, I did manual polling here
+    const pollFlags = async() => {
+      try {
+       await flagsmith.getFlags()
+      } catch (error) {
+        console.error(error)
+      }
+    }
+
+    pollFlags();
+    const flagsmithInterval = setInterval(pollFlags, 30000);
+
     // Check if online
     setIsOnline(navigator.onLine)
     window.addEventListener("online", () => setIsOnline(true))
@@ -272,6 +294,10 @@ export default function WeatherApp() {
       window.removeEventListener("online", () => setIsOnline(true))
       window.removeEventListener("offline", () => setIsOnline(false))
       window.removeEventListener("beforeinstallprompt", () => { })
+
+      // cleaning up listener
+      clearInterval(flagsmithInterval)
+      // flagsmith.stopListening();
     }
   }, [isOnline])
 
@@ -571,7 +597,7 @@ export default function WeatherApp() {
               </div>
             </div>
 
-            {weather.hourlyForecast && weather.hourlyForecast.length > 0 && (
+            {flags && flags.today_forecast.enabled && weather.hourlyForecast && weather.hourlyForecast.length > 0 && (
               <div className="mt-6 pt-6 border-t">
                 <h3 className="mb-4 font-medium">Today&apos;s Forecast</h3>
                 <div className="flex overflow-x-auto pb-2 -mx-2 px-2 scrollbar-thin">
@@ -594,61 +620,71 @@ export default function WeatherApp() {
         </Card>
 
         {/* Air Quality Card */}
-        <Card className="mb-6 border-none shadow-lg py-0">
-          <CardHeader className="bg-primary/80 text-primary-foreground rounded-t-lg py-4">
-            <CardTitle className="flex items-center justify-between text-2xl">
-              <span>Air Quality</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="py-6">
-            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-              <div className="flex items-center gap-4">
-                <div
-                  className={`flex h-16 w-16 md:h-12 md:h-12 lg:h-16 lg:w-16 items-center justify-center rounded-full ${getAirQualityColor(weather.airQuality.level)} text-white`}
-                >
-                  <span className="text-xl font-bold">{weather.airQuality.index}</span>
+        {
+          flags && flags.today_air_quality.enabled && (
+            <Card className="mb-6 border-none shadow-lg py-0">
+              <CardHeader className="bg-primary/80 text-primary-foreground rounded-t-lg py-4">
+                <CardTitle className="flex items-center justify-between text-2xl">
+                  <span>Air Quality</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="py-6">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div className="flex items-center gap-4">
+                    <div
+                      className={`flex h-16 w-16 md:h-12 md:h-12 lg:h-16 lg:w-16 items-center justify-center rounded-full ${getAirQualityColor(weather.airQuality.level)} text-white`}
+                    >
+                      <span className="text-xl font-bold">{weather.airQuality.index}</span>
+                    </div>
+                    <div>
+                      <h3 className="xs:text-xl md:text-sm lg:text-xl font-semibold">{weather.airQuality.level}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Primary pollutant: {weather.airQuality.primaryPollutant}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="max-w-md">
+                    <p className="text-sm">{weather.airQuality.description}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="xs:text-xl md:text-sm lg:text-xl font-semibold">{weather.airQuality.level}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Primary pollutant: {weather.airQuality.primaryPollutant}
-                  </p>
-                </div>
-              </div>
-              <div className="max-w-md">
-                <p className="text-sm">{weather.airQuality.description}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          )
+        }
 
         {/* Forecast Card */}
-        <Card className="border-none shadow-lg py-0">
-          <CardHeader className="bg-primary/90 text-primary-foreground rounded-t-lg py-4">
-            <CardTitle className="text-2xl">7-Day Forecast</CardTitle>
-          </CardHeader>
-          <CardContent className="py-6">
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 md:grid-cols-7">
-              {weather.forecast.map((day, index) => (
-                <div key={index} className="flex flex-col items-center rounded-lg bg-card p-3 shadow">
-                  <span className="font-medium">{day.day}</span>
-                  {getWeatherIcon(day.condition)}
-                  <span className="mt-2 text-lg font-bold">
-                    {useFahrenheit
-                      ? (typeof day.temp === "string" ? "-" : `${day.temp}°F`)
-                      : (typeof day.tempC === "string" ? "-" : `${day.tempC}°C`)
-                    }
-                  </span>
+        {
+          flags && flags["7_days_forecast"].enabled &&
+          (
+            <Card className="border-none shadow-lg py-0">
+              <CardHeader className="bg-primary/90 text-primary-foreground rounded-t-lg py-4">
+                <CardTitle className="text-2xl">7-Day Forecast</CardTitle>
+              </CardHeader>
+              <CardContent className="py-6">
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 md:grid-cols-7">
+                  {weather.forecast.map((day, index) => (
+                    <div key={index} className="flex flex-col items-center rounded-lg bg-card p-3 shadow">
+                      <span className="font-medium">{day.day}</span>
+                      {getWeatherIcon(day.condition)}
+                      <span className="mt-2 text-lg font-bold">
+                        {useFahrenheit
+                          ? (typeof day.temp === "string" ? "-" : `${day.temp}°F`)
+                          : (typeof day.tempC === "string" ? "-" : `${day.tempC}°C`)
+                        }
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </CardContent>
-          <CardFooter className="text-sm text-muted-foreground py-6">
-            <p>
-              Last updated: {getLastUpdateTime()}. Powered by <a href="https://www.weatherapi.com/" title="Weather API">WeatherAPI.com</a>
-            </p>
-          </CardFooter>
-        </Card>
+              </CardContent>
+              <CardFooter className="text-sm text-muted-foreground py-6">
+                <p>
+                  Last updated: {getLastUpdateTime()}. Powered by <a href="https://www.weatherapi.com/" title="Weather API">WeatherAPI.com</a>
+                </p>
+              </CardFooter>
+            </Card>
+          )
+        }
+       
       </div>
     </div>
   )

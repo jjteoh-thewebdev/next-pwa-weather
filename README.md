@@ -26,6 +26,8 @@ A modern, responsive weather application built with Next.js that works online an
 - 💨 **Air Quality Information**: Detailed air quality metrics including index, level, and primary pollutant
 - 🖥️ **Responsive Design**: Optimized for mobile, tablet, and desktop
 - 💾 **Installable**: Can be installed on devices as a standalone app
+- 🌎 **Geolocation Support**: Use current location as default location
+- 🚩 **Feature Flag**: Integrated with [FlagSmith](flagsmith)
 
 ## Tech Stack
 
@@ -35,6 +37,14 @@ A modern, responsive weather application built with Next.js that works online an
 - shadcn/ui components
 - Service Workers for offline functionality
 - WeatherAPI.com for weather data
+- Geolocation support for precise weather info
+- FlagSmith - feature flag to enable/disable features
+
+Flagsmith cloud-based dashboard:
+
+<div align="center">
+   <img src="flagsmith-screenshot.PNG" />
+</div>
 
 ## Getting Started
 
@@ -59,7 +69,9 @@ A modern, responsive weather application built with Next.js that works online an
 3. Create a `.env.local` file in the root directory:
    ```
    WEATHER_API_URL=https://api.weatherapi.com/v1
-   WEATHER_API_KEY=your_weatherapi_key_here
+   WEATHER_API_KEY=YOUR_WEATHERAPI_KEY
+
+   NEXT_PUBLIC_FLAGSMITH_KEY=YOUR_ENVIRONMENT_KEY
    ```
 
 4. Start the development server:
