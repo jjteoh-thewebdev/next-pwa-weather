@@ -96,18 +96,28 @@ export default function WeatherApp() {
 
   // Function to get user's current location
   const getCurrentLocation = async() => {
-    return new Promise<GeolocationPosition>((resolve, reject) => {
+    return new Promise<GeolocationPosition | null>((resolve, reject) => {
       if (!navigator.geolocation) {
         reject(new Error("Geolocation is not supported by your browser"))
         return
       }
 
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
+      navigator.geolocation.getCurrentPosition(resolve, 
+        (error) => {
+          // Check if the error is due to permission denial
+          if (error.code === error.PERMISSION_DENIED) {
+            resolve(null); // Return null if geolocation is denied
+          } else {
+            reject(error); // Reject other errors
+          }
+        }, {
         enableHighAccuracy: true,
         timeout: 5000,
         maximumAge: 0,
       })
     }).then(async (geo) => {
+      if(!geo) return null
+      
       // lookup location by coords
       const { coords } = geo
       const results = await searchLocations(`${coords.latitude},${coords.longitude}`)
