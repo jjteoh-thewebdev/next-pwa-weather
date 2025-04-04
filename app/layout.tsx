@@ -75,7 +75,7 @@ export default async function RootLayout({
             {children}
         
             <footer className="text-center text-sm text-muted-foreground py-6">
-              <p>Weather App by <a className="underline text-blue-500" href="https://github.com/jjteoh-thewebdev">JJTeoh</a></p>
+              <p>Weather App by <a className="underline text-blue-500" href="https://github.com/jjteoh-thewebdev">JJTeoh</a> with ❤️</p>
             </footer>
           </ThemeProvider>
         </FeatureFlagProvider>
