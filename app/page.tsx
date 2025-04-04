@@ -573,7 +573,7 @@ export default function WeatherApp() {
 
             {weather.hourlyForecast && weather.hourlyForecast.length > 0 && (
               <div className="mt-6 pt-6 border-t">
-                <h3 className="mb-4 font-medium">Today's Forecast</h3>
+                <h3 className="mb-4 font-medium">Today&apos;s Forecast</h3>
                 <div className="flex overflow-x-auto pb-2 -mx-2 px-2 scrollbar-thin">
                   <div className="flex gap-3">
                     {weather.hourlyForecast.map((hour, index) => (
