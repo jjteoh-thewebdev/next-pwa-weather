@@ -6,12 +6,13 @@ import { useState, useEffect } from "react"
 import { Cloud, CloudRain, CloudSnow, Sun, Droplets, Wind, Download, CloudOff, RefreshCw } from "lucide-react"
 import { format, addDays, parseISO, differenceInHours, differenceInMinutes } from "date-fns"
 
+import { getAirQualityLevel, getPrimaryPollutant, getAirQualityDescription, getAirQualityColor } from './../lib/utils'
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import SearchBar from "@/components/SearchBar"
-import { getWeatherForecast } from "@/lib/api/api"
+import { getWeatherForecast, searchLocations } from "@/lib/api/api"
 import type { LocationSuggestion, WeatherResponse } from "@/lib/api/models"
 
 // Default location when app first loads
@@ -41,6 +42,14 @@ interface WeatherState {
     description: string;
   };
   forecast: ForecastDay[];
+  hourlyForecast?: HourlyForecast[]
+}
+
+interface HourlyForecast {
+  time: string;
+  tempC: number;
+  tempF: number;
+  condition: string;
 }
 
 const placeholderWeather: WeatherState = {
@@ -76,6 +85,28 @@ export default function WeatherApp() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
   const [isInstalled, setIsInstalled] = useState(false)
   const [useFahrenheit, setUseFahrenheit] = useState(false)
+
+  // Function to get user's current location
+  const getCurrentLocation = async() => {
+    return new Promise<GeolocationPosition>((resolve, reject) => {
+      if (!navigator.geolocation) {
+        reject(new Error("Geolocation is not supported by your browser"))
+        return
+      }
+
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: 5000,
+        maximumAge: 0,
+      })
+    }).then(async (geo) => {
+      // lookup location by coords
+      const { coords } = geo
+      const results = await searchLocations(`${coords.latitude},${coords.longitude}`)
+
+      return results && results.length > 0 ? results[0] : null
+    })
+  }
 
   // Function to ensure we always have 7 days of forecast starting from today
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -149,6 +180,22 @@ export default function WeatherApp() {
           condition: (day.day.condition?.text || "Sunny").toLowerCase(),
         };
       }),
+      hourlyForecast: weatherData.forecast.forecastday[0].hour.filter(h => new Date(h.time.replace(" ", "T")) > new Date()).map(h => {
+        // parse time to 12hr AM/PM format
+        // expecting h.time in YYYY-MM-dd HH:mm format
+        const hour = new Date(h.time.replace(" ", "T")).getHours(); 
+
+        const amPm = hour >= 12 ? 'PM' : 'AM';
+        const parsedTime =  `${(hour % 12 || 12)} ${amPm}`
+
+        return {
+          time: parsedTime,
+          condition: h.condition.text,
+          tempC: Math.round(h.temp_c),
+          tempF: Math.round(h.temp_f)
+        }
+        
+      })
     };
   };
 
@@ -185,7 +232,11 @@ export default function WeatherApp() {
       setError(null);
 
       try {
-        const weatherData = await getWeatherForecast(DEFAULT_LOCATION, 7);
+        // Get user's current location
+        const userLocation = await getCurrentLocation()        
+        const targetLocation = userLocation ? userLocation.name : DEFAULT_LOCATION;
+
+        const weatherData = await getWeatherForecast(targetLocation, 7);
         const transformedData = transformWeatherData(weatherData);
 
         setWeather(transformedData);
@@ -313,78 +364,6 @@ export default function WeatherApp() {
     }
   }
 
-  const getAirQualityLevel = (index: number) => {
-    if (index <= 1) return "Good";
-    if (index <= 2) return "Moderate";
-    if (index <= 3) return "Unhealthy for Sensitive Groups";
-    if (index <= 4) return "Unhealthy";
-    if (index <= 5) return "Very Unhealthy";
-    return "Hazardous";
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const getPrimaryPollutant = (airQuality: any) => {
-    if (!airQuality) return "Unknown";
-
-    const pollutants = {
-      "pm2_5": "PM2.5",
-      "pm10": "PM10",
-      "o3": "O3",
-      "no2": "NO2",
-      "so2": "SO2",
-      "co": "CO"
-    };
-
-    let highestValue = -1;
-    let highestPollutant = "Unknown";
-
-    for (const [key, value] of Object.entries(pollutants)) {
-      if (airQuality[key] && airQuality[key] > highestValue) {
-        highestValue = airQuality[key];
-        highestPollutant = value;
-      }
-    }
-
-    return highestPollutant;
-  }
-
-  const getAirQualityDescription = (index: number) => {
-    switch (index) {
-      case 1:
-        return "Air quality is satisfactory, and air pollution poses little or no risk.";
-      case 2:
-        return "Air quality is acceptable. However, there may be a risk for some people, particularly those who are unusually sensitive to air pollution.";
-      case 3:
-        return "Members of sensitive groups may experience health effects. The general public is less likely to be affected.";
-      case 4:
-        return "Some members of the general public may experience health effects; members of sensitive groups may experience more serious health effects.";
-      case 5:
-        return "Health alert: The risk of health effects is increased for everyone.";
-      case 6:
-        return "Health warning of emergency conditions: everyone is more likely to be affected.";
-      default:
-        return "Air quality information not available.";
-    }
-  }
-
-  const getAirQualityColor = (level: string) => {
-    switch (level) {
-      case "Good":
-        return "bg-green-500"
-      case "Moderate":
-        return "bg-yellow-500"
-      case "Unhealthy for Sensitive Groups":
-        return "bg-orange-500"
-      case "Unhealthy":
-        return "bg-red-500"
-      case "Very Unhealthy":
-        return "bg-purple-500"
-      case "Hazardous":
-        return "bg-rose-900"
-      default:
-        return "bg-green-500"
-    }
-  }
 
   // to get formatted last update time
   const getLastUpdateTime = () => {
@@ -591,6 +570,26 @@ export default function WeatherApp() {
                 </div>
               </div>
             </div>
+
+            {weather.hourlyForecast && weather.hourlyForecast.length > 0 && (
+              <div className="mt-6 pt-6 border-t">
+                <h3 className="mb-4 font-medium">Today's Forecast</h3>
+                <div className="flex overflow-x-auto pb-2 -mx-2 px-2 scrollbar-thin">
+                  <div className="flex gap-3">
+                    {weather.hourlyForecast.map((hour, index) => (
+                      <div
+                        key={index}
+                        className="flex flex-col space-y-2 items-center rounded-lg bg-card p-3 shadow min-w-[80px]"
+                      >
+                        <span className="text-sm font-medium">{hour.time}</span>
+                        {getWeatherIcon(hour.condition)}
+                        <span className="mt-1 font-bold">{useFahrenheit ? `${hour.tempF}°F` : `${hour.tempC}°C`}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
