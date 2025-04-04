@@ -51,7 +51,8 @@ Flagsmith cloud-based dashboard:
 ### Prerequisites
 
 - Node.js 18+ and npm/yarn
-- A WeatherAPI.com API key (free tier available)
+- A WeatherAPI.com API key (free tier available) for fetching weather info
+- A FlagSmith.com Account (free tier available) for feature flag management
 
 ### Installation
 
